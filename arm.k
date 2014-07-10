@@ -46,13 +46,13 @@ module ARMV4-TOKEN
     /* <Operand2> */
     syntax FlexibleOperand2           ::= ImmediateValue
                                         | Register
-                                        > Register "," ShiftMnemonic ImmediateValue
-                                        | Register "," ShiftMnemonic Register
+                                        > Register "," ShiftMnemonic ImmediateValue                                                                 [strict(3)]
+                                        | Register "," ShiftMnemonic Register                                                                       [strict(3)]
                                         | Register "," RrxMnemonic
 
     /* Register, optionally shifted by constant */
     syntax FlexibleRegister           ::= Register
-                                        > Register "," ShiftMnemonic ImmediateValue
+                                        > Register "," ShiftMnemonic ImmediateValue                                                                 [strict(3)]
                                         | Register "," RrxMnemonic
 
     /* <Rs|sh> */
@@ -99,11 +99,11 @@ module ARMV4-SYNTAX
     /* Multiply */
     syntax MultiplyMnemonic           ::= "mul"
 
-    syntax MultiplyOperator           ::= MoveMnemonic
-                                        > MoveMnemonic UpdateConditionFlag
+    syntax MultiplyOperator           ::= MultiplyMnemonic
+                                        > MultiplyMnemonic UpdateConditionFlag
 
     /* OP{S} Rd, Rm, Rs */
-    syntax MultiplyOperation          ::= MultiplyOperator Register "," Register "," Register                                                       [strict(4)]
+    syntax MultiplyOperation          ::= MultiplyOperator Register "," Register "," Register
                                         | MultiplyOperator ConditionMnemonic Register "," Register "," Register                                     [strict(2)]
 
     /* Move data */
@@ -186,15 +186,19 @@ module ARMV4-SYNTAX
                                         | SingleMemoryMnemonic ConditionMnemonic
                                         > SingleMemoryMnemonic Size ConditionMnemonic
 
+    syntax SingleMemoryOperand        ::= "[" Register "]"
+                                        | Label
+                                        > "[" Register "," ImmediateValue "]"
+                                        | "[" Register "]" "," ImmediateValue
+                                        > "[" Register "," FlexibleRegister "]"
+                                        | "[" Register "," PlusMinus FlexibleRegister "]"
+                                        | "[" Register "]" "," FlexibleRegister
+                                        | "[" Register "]" "," PlusMinus FlexibleRegister
+
+
+
     /* <op>{size} Rd, [Rn] */
-    syntax SingleMemoryOperation      ::= SingleMemoryOperator Register "," "[" Register "]"
-                                        > SingleMemoryOperator Register "," "[" Register "," ImmediateValue "]"
-                                        | SingleMemoryOperator Register "," "[" Register "]" "," ImmediateValue
-                                        > SingleMemoryOperator Register "," "[" Register "," FlexibleRegister "]"
-                                        | SingleMemoryOperator Register "," "[" Register "," PlusMinus FlexibleRegister "]"
-                                        | SingleMemoryOperator Register "," "[" Register "]" "," FlexibleRegister
-                                        | SingleMemoryOperator Register "," "[" Register "]" "," PlusMinus FlexibleRegister
-                                        > SingleMemoryOperator Register "," Label
+    syntax SingleMemoryOperation      ::= SingleMemoryOperator Register "," SingleMemoryOperand                                                         [strict(3)]
 
     /* Load or store multiple */
     syntax MultipleMemoryMnemonic     ::= "ldm"
@@ -206,10 +210,10 @@ module ARMV4-SYNTAX
                                         > MultipleMemoryMnemonic MemoryOperatorSuffix ConditionMnemonic
 
     /* <op>{IA|IB|DA|DB} Rn, <reglist> */
-    syntax MultipleMemoryOperation    ::= MultipleMemoryOperator Register RegisterList
-                                        > MultipleMemoryOperator Register "!" RegisterList
-                                        | MultipleMemoryOperator Register RegisterList "^"
-                                        | MultipleMemoryOperator Register "!" RegisterList "^"
+    syntax MultipleMemoryOperation    ::= MultipleMemoryOperator Register "{" RegisterList "}"
+                                        > MultipleMemoryOperator Register "!" "{" RegisterList "}"
+                                        | MultipleMemoryOperator Register "{" RegisterList "}" "^"
+                                        | MultipleMemoryOperator Register "!" "{" RegisterList "}" "^"
 
 
 
@@ -365,6 +369,45 @@ module ARMV4-SEMANTICS-FLEXIBLE
     rule
     <k> Rm:Register => I:Int ... </k>
     <register> ... Rm |-> I ... </register>
+
+
+endmodule
+
+
+module ARMV4-SEMANTICS-MEMORY-OPERAND
+    imports ARMV4-PROGRAM
+
+    /* On Semantic Level MemoryOperand becomes evaluated to an int */
+    syntax SingleMemoryOperand ::= Int
+
+    /* Evaluate Label */
+    rule
+    <k> L:Label => A:Int ... </k>
+    <store> ... L|->A ... </store>
+
+    /* Evaluate Register */
+    rule
+    <k> [ Rn:Register ] => A:Int ... </k>
+    <register> ... Rn |-> A ... </register>
+
+    /* Evaluate Register with Immediate offset */
+    rule
+    <k> [ Rn:Register ], # I:Int => A:Int +Int I ... </k>
+    <register> ... Rn |-> A ... </register>
+
+    /* Evaluate Register with Register offset */
+    rule [ Rn:Register , Rm:Register ] => [ Rn:Register , + Rm:Register ]               [structural]
+    rule
+    <k> [ Rn:Register , + Rm:Register ] => A:Int +Int I ... </k>
+    <register> ... Rn |-> A
+                   Rm |-> I ... </register>
+    rule
+    <k> [ Rn:Register , - Rm:Register ] => A:Int -Int I ... </k>
+    <register> ... Rn |-> A
+                   Rm |-> I ... </register>
+
+
+
 
 endmodule
 
@@ -534,6 +577,7 @@ module ARMV4-SEMANTICS
 
     imports ARMV4-SEMANTICS-CONDITIONAL
     imports ARMV4-SEMANTICS-FLEXIBLE
+    imports ARMV4-SEMANTICS-MEMORY-OPERAND
 
     /* Add */
     rule
@@ -554,18 +598,6 @@ module ARMV4-SEMANTICS
     <register> ... Rd |-> (J => J +Int I)
                    n |-> (_ => J +Int I <Int 0)
                    z |-> (_ => J +Int I =Int 0) ... </register>
-
-    /* Multiply */
-    rule
-    <k> mul Rd, Rm, I => . </k>
-    <register> ... Rm |-> J
-                   Rd |-> (_ => I *Int J) ... </register>
-    rule
-    <k> muls Rd, Rm, I => . </k>
-    <register> ... Rm |-> J
-                   Rd |-> (_ => I *Int J)
-                   n |-> (_ => I *Int J <Int 0)
-                   z |-> (_ => I *Int J =Int 0) ... </register>
 
     /* Add with carry */
     rule
@@ -631,9 +663,9 @@ module ARMV4-SEMANTICS
     rule
     <k> sbcs Rd, Rd, I => . </k>
     <register> ... c |-> C
-                   Rd |-> (_ => J -Int I -Int ~Int C)
-                   n |-> (_ => J -Int I -Int ~Int C <Int 0)
-                   z |-> (_ => J -Int I -Int ~Int C =Int 0) ... </register>
+                   Rd |-> (J => J -Int I -Int ~Int C)
+                   n |-> (J => J -Int I -Int ~Int C <Int 0)
+                   z |-> (J => J -Int I -Int ~Int C =Int 0) ... </register>
 
     /* reverse subtract */
     rule
@@ -678,6 +710,20 @@ module ARMV4-SEMANTICS
                    Rd |-> (J => I -Int J -Int ~Int C)
                    n |-> (_ => I -Int J -Int ~Int C <Int 0)
                    z |-> (_ => I -Int J -Int ~Int C =Int 0) ... </register>
+
+    /* Multiply */
+    rule
+    <k> mul Rd, Rm, Rs => . </k>
+    <register> ... Rm |-> J:Int
+                   Rs |-> I:Int
+                   Rd |-> (_ => I *Int J) ... </register>
+    rule
+    <k> muls Rd, Rm, Rs => . </k>
+    <register> ... Rm |-> J:Int
+                   Rs |-> I:Int
+                   Rd |-> (_ => I *Int J)
+                   n |-> (_ => I *Int J <Int 0)
+                   z |-> (_ => I *Int J =Int 0)  ... </register>
 
     /* Branch */
     rule
@@ -836,6 +882,82 @@ module ARMV4-SEMANTICS
     <register> ... Rd |-> (J => J &Int ~Int I)
                    n |-> (_ => J &Int ~Int I <Int 0)
                    z |-> (_ => J &Int ~Int I =Int 0) ... </register>
+
+    /* Load Single */
+    rule
+    <k> ldr Rd, (A:Int) => . </k>
+    <register> ... Rd |-> (_ => I) ... </register>
+    <memory> ... A |-> I ... </memory>
+    <i> CI => CI +Int 1 </i>                                    /* one internal cycle on instruction bus */
+
+    /* Store Single */
+    rule
+    <k> str Rd, (A:Int) => . </k>
+    <register> ... Rd |-> I ... </register>
+    <memory> ... A |-> (_ => I) ... </memory>
+    <i> CI => CI +Int 1 </i>                                    /* one internal cycle on instruction bus */
+
+    /* Load Multiple */
+    rule ldm _:MemoryOperatorSuffix Rn { . } => .           [structural]
+    rule ldm Rn { Rs:RegisterList } => ldmia Rn { Rs }      [structural]
+    rule
+    <k> ldmia Rn { R:Register , Rs:RegisterList } => ldmia Rn { Rs } </k>
+    <register> ... Rn |-> (A => A +Int 4)
+                   R |-> (_ => I) ... </register>
+    <memory> ... A |-> I ... </memory>
+    <i> CI => CI +Int 1 </i>                                    /* one internal cycle on instruction bus */
+    rule
+    <k> ldmib Rn { R:Register , Rs:RegisterList } => ldmib Rn { Rs } </k>
+    <register> ... Rn |-> (A => A +Int 4)
+                   R |-> (_ => I) ... </register>
+    <memory> ... A +Int 4 |-> I ... </memory>
+    <i> CI => CI +Int 1 </i>                                    /* one internal cycle on instruction bus */
+    rule
+    <k> ldmda Rn { R:Register , Rs:RegisterList } => ldmda Rn { Rs } </k>
+    <register> ... Rn |-> (A => A -Int 4)
+                   R |-> (_ => I) ... </register>
+    <memory> ... A |-> I ... </memory>
+    <i> CI => CI +Int 1 </i>                                    /* one internal cycle on instruction bus */
+    rule
+    <k> ldmdb Rn { R:Register , Rs:RegisterList } => ldmdb Rn { Rs } </k>
+    <register> ... Rn |-> (A => A -Int 4)
+                   R |-> (_ => I) ... </register>
+    <memory> ... A-Int 4 |-> I ... </memory>
+    <i> CI => CI +Int 1 </i>                                    /* one internal cycle on instruction bus */
+
+    /* Store Multiple */
+    rule stm _:MemoryOperatorSuffix Rn { . } => .           [structural]
+    rule stm Rn { Rs:RegisterList } => stmia Rn { Rs }      [structural]
+    rule
+    <k> stmia Rn { R:Register , Rs:RegisterList } => stmia Rn { Rs } </k>
+    <register> ... Rn |-> (A => A +Int 4)
+                   R |-> I ... </register>
+    <memory> ... A |-> (_ => I) ... </memory>
+    <i> CI => CI +Int 1 </i>                                    /* one internal cycle on instruction bus */
+    rule
+    <k> stmib Rn { R:Register , Rs:RegisterList } => stmib Rn { Rs } </k>
+    <register> ... Rn |-> (A => A +Int 4)
+                   R |-> I ... </register>
+    <memory> ... A +Int 4 |-> (_ => I) ... </memory>
+    <i> CI => CI +Int 1 </i>                                    /* one internal cycle on instruction bus */
+    rule
+    <k> stmda Rn { R:Register , Rs:RegisterList } => stmda Rn { Rs } </k>
+    <register> ... Rn |-> (A => A -Int 4)
+                   R |-> I ... </register>
+    <memory> ... A |-> (_ => I) ... </memory>
+    <i> CI => CI +Int 1 </i>                                    /* one internal cycle on instruction bus */
+    rule
+    <k> stmdb Rn { R:Register , Rs:RegisterList } => stmdb Rn { Rs } </k>
+    <register> ... Rn |-> (A => A -Int 4)
+                   R |-> I ... </register>
+    <memory> ... A-Int 4 |-> (_ => I) ... </memory>
+    <i> CI => CI +Int 1 </i>                                    /* one internal cycle on instruction bus */
+
+
+
+
+
+
 
 endmodule
 
