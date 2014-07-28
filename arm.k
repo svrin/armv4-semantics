@@ -4,33 +4,37 @@
 \author{Severin Orth}
 \email{severin.orth@st.ovgu.de}
 \lecture{SemProg 2014}
+
+Follows the ARM® and Thumb®-2 Instruction Set / Quick Reference Card
+
 */
 
 module ARMV4-TOKEN
 
     /* Condition Field */
-    syntax ConditionMnemonic          ::= "eq"
-                                        | "ne"
-                                        | "cs"
-                                        | "hs"
-                                        | "cc"
-                                        | "lo"
-                                        | "mi"
-                                        | "pl"
-                                        | "vs"
-                                        | "vc"
-                                        | "hi"
-                                        | "ls"
-                                        | "ge"
-                                        | "lt"
-                                        | "gt"
-                                        | "le"
-                                        | "al"
+    syntax ConditionMnemonic          ::= "eq"  /* Equal: z */
+                                        | "ne"  /* Not equal: ¬z */
+                                        | "cs"  /* Carry set: c */
+                                        | "hs"  /* Unsigned higher or same: c */
+                                        | "cc"  /* Carry clear: ¬c */
+                                        | "lo"  /* Unsigned lower: ¬c */
+                                        | "mi"  /* Negative: n */
+                                        | "pl"  /* Positive or zero: ¬n */
+                                        | "vs"  /* Overflow: v */
+                                        | "vc"  /* No overflow: ¬v */
+                                        | "hi"  /* Unsigned higher: c && ¬z */
+                                        | "ls"  /* Unsigned lower or same: ¬c || z */
+                                        | "ge"  /* Signed greater than or equal: n == v */
+                                        | "lt"  /* Signed less than: n != v */
+                                        | "gt"  /* Signed greater than: ¬z && n == v */
+                                        | "le"  /* Signed less than or equal: z || n != v */
+                                        | "al"  /* always: 1 */
 
     /* {S} */
     syntax UpdateConditionFlag        ::= "s"
 
     /* Rd, Rm, Rs, Rn */
+    /* Note that arm asm alawys to define own named registers, beside the predfined ones */
     syntax Register                   ::= Id
 
     /* <reglist> */
@@ -60,20 +64,20 @@ module ARMV4-TOKEN
                                         | ImmediateValue
 
     /* <size> */
-    syntax Size                       ::= "b"
-                                        | "sb"
-                                        | "h"
-                                        | "sh"
+    syntax Size                       ::= "b"   /* byte */
+                                        | "sb"  /* signed byte */
+                                        | "h"   /* half */
+                                        | "sh"  /* signed half */
 
     /* +/- */
     syntax PlusMinus                  ::= "+"
                                         | "-"
 
     /* {IA|IB|DA|DB} */
-    syntax MemoryOperatorSuffix       ::= "ia"
-                                        | "ib"
-                                        | "da"
-                                        | "db"
+    syntax MemoryOperatorSuffix       ::= "ia"  /* increment after */
+                                        | "ib"  /* increment before */
+                                        | "da"  /* decrement after */
+                                        | "db"  /* decrement before */
 
 endmodule
 
@@ -82,12 +86,12 @@ module ARMV4-SYNTAX
     imports ARMV4-TOKEN
 
     /* Add, Subtract */
-    syntax ArithmeticMnemonic         ::= "add"
-                                        | "adc"
-                                        | "sub"
-                                        | "sbc"
-                                        | "rsb"
-                                        | "rsc"
+    syntax ArithmeticMnemonic         ::= "add"  /* Add */
+                                        | "adc"  /* Add with carry */
+                                        | "sub"  /* Subtract */
+                                        | "sbc"  /* Subtract with carry */
+                                        | "rsb"  /* Reverse subtract */
+                                        | "rsc"  /* Reverse subtract with carry */
 
     syntax ArithmeticOperator         ::= ArithmeticMnemonic
                                         > ArithmeticMnemonic UpdateConditionFlag
@@ -97,7 +101,7 @@ module ARMV4-SYNTAX
                                         | ArithmeticOperator ConditionMnemonic Register "," Register "," FlexibleOperand2                           [strict(2)]
 
     /* Multiply */
-    syntax MultiplyMnemonic           ::= "mul"
+    syntax MultiplyMnemonic           ::= "mul"  /* Multiply */
 
     syntax MultiplyOperator           ::= MultiplyMnemonic
                                         > MultiplyMnemonic UpdateConditionFlag
@@ -107,8 +111,8 @@ module ARMV4-SYNTAX
                                         | MultiplyOperator ConditionMnemonic Register "," Register "," Register                                     [strict(2)]
 
     /* Move data */
-    syntax MoveMnemonic               ::= "mov"
-                                        | "mvn"
+    syntax MoveMnemonic               ::= "mov"  /* Move */
+                                        | "mvn"  /* Move NOT */
 
     syntax MoveOperator               ::= MoveMnemonic
                                         > MoveMnemonic UpdateConditionFlag
@@ -118,10 +122,10 @@ module ARMV4-SYNTAX
                                         > MoveOperator ConditionMnemonic Register "," FlexibleOperand2                                              [strict(2)]
 
     /* Shift */
-    syntax ShiftMnemonic              ::= "asr"
-                                        | "lsl"
-                                        | "lsr"
-                                        | "ror"
+    syntax ShiftMnemonic              ::= "asr"  /* Arithmetic shift right */
+                                        | "lsl"  /* Logical shift left */
+                                        | "lsr"  /* Logical shift right */
+                                        | "ror"  /* Rotate right */
 
     /* OP{S} Rd, Rm, <Rs|sh> */
     syntax ShiftOperation             ::= ShiftMnemonic Register "," Register "," FlexibleShift
@@ -130,7 +134,7 @@ module ARMV4-SYNTAX
                                         | ShiftMnemonic ConditionMnemonic Register "," Register "," FlexibleShift
 
     /* Shift */
-    syntax RrxMnemonic                ::= "rrx"
+    syntax RrxMnemonic                ::= "rrx"  /* Rotate right with extend */
 
     /* OP{S} Rd, Rm */
     syntax RrxOperation               ::= RrxMnemonic Register "," Register
@@ -139,21 +143,21 @@ module ARMV4-SYNTAX
                                         | RrxMnemonic ConditionMnemonic Register "," Register
 
     /* Compare, Logical */
-    syntax TestMnemonic               ::= "cmp"
-                                        | "cmn"
-                                        | "tst"
-                                        | "teq"
+    syntax TestMnemonic               ::= "cmp"  /* Compare */
+                                        | "cmn"  /* Compare negative */
+                                        | "tst"  /* Test */
+                                        | "teq"  /* Test equivalence */
 
     /* OP Rn, <Operand2> */
     syntax TestOperation              ::= TestMnemonic Register "," FlexibleOperand2
                                         > TestMnemonic ConditionMnemonic Register "," FlexibleOperand2
 
     /* Logical */
-    syntax LogicalMnemonic            ::= "and"
-                                        | "eor"
-                                        | "orr"
-                                        | "orn"
-                                        | "bic"
+    syntax LogicalMnemonic            ::= "and"  /* AND: Bitweise logical AND operation */
+                                        | "eor"  /* EOR: Bitweise exclusive OR operation */
+                                        | "orr"  /* ORR: Bitweise logical OR operation */
+                                        | "orn"  /* &1 || ¬&2 */
+                                        | "bic"  /* &1 && ¬&2 */
 
     syntax LogicalOperator            ::= LogicalMnemonic
                                         > LogicalMnemonic UpdateConditionFlag
@@ -163,23 +167,23 @@ module ARMV4-SYNTAX
                                         | LogicalOperator ConditionMnemonic Register "," Register "," FlexibleOperand2                              [strict(2)]
 
     /* Branch */
-    syntax BranchMnemonic             ::= "b"
-                                        | "bl"
+    syntax BranchMnemonic             ::= "b"   /* branch */
+                                        | "bl"  /* branch with link */
 
     /* OP <Label> */
     syntax BranchOperation            ::= BranchMnemonic Label
                                         > BranchMnemonic UpdateConditionFlag Label
 
     /* Branch and exchange */
-    syntax BxMnemonic                 ::= "bx"
+    syntax BxMnemonic                 ::= "bx"  /* branch with link and exchange */
 
     /* OP <Label> */
     syntax BxOperation                ::= BxMnemonic Register
                                         > BxMnemonic UpdateConditionFlag Register
 
     /* Load or store word, byte or halfword */
-    syntax SingleMemoryMnemonic       ::= "ldr"
-                                        | "str"
+    syntax SingleMemoryMnemonic       ::= "ldr"  /* Load */
+                                        | "str"  /* Store */
 
     syntax SingleMemoryOperator       ::= SingleMemoryMnemonic
                                         > SingleMemoryMnemonic Size
@@ -201,8 +205,8 @@ module ARMV4-SYNTAX
     syntax SingleMemoryOperation      ::= SingleMemoryOperator Register "," SingleMemoryOperand                                                         [strict(3)]
 
     /* Load or store multiple */
-    syntax MultipleMemoryMnemonic     ::= "ldm"
-                                        | "stm"
+    syntax MultipleMemoryMnemonic     ::= "ldm"  /* Load multiple */
+                                        | "stm"  /* Store multiple */
 
     syntax MultipleMemoryOperator     ::= MultipleMemoryMnemonic
                                         > MultipleMemoryMnemonic MemoryOperatorSuffix
@@ -243,6 +247,7 @@ module ARMV4-PROGRAM
     syntax Program             ::= List{Procedure, " "}
 
     /* Named Register */
+    /* These are the predefined named registers */
     syntax Register            ::= "r0"
                                  | "a1"  /* argument 1 */
                                  | "r1"
@@ -280,10 +285,12 @@ module ARMV4-PROGRAM
                                  | "pc"  /* program counter */
 
     /* Status Register */
+    /* These are currently just for naming convention, internal n,z,c,v is used */
     syntax Register             ::= "cpsr"
                                   | "spsr"
 
     /* Condition Register */
+    /* Used for conditional evaluation */
     syntax Register            ::= "n"
                                  | "z"
                                  | "c"
@@ -291,6 +298,9 @@ module ARMV4-PROGRAM
 endmodule
 
 
+/*
+    How an arm prorga,m gets executed
+*/
 module ARMV4-EXECUTION
     imports ARMV4-SYNTAX
     imports ARMV4-PROGRAM
@@ -299,6 +309,8 @@ module ARMV4-EXECUTION
     syntax Label               ::= "main"
 
     /* Special instruction counter for assigning labels */
+    /* These gets incremented internally for assigning memory address for code lines */
+    /* basicly the job that the linker normally does */
     syntax Id                  ::= "ic"
 
     /* Special register value UNKNOWN */
@@ -355,6 +367,43 @@ module ARMV4-EXECUTION
 endmodule
 
 
+/*
+    These defines the alias names for named register
+
+    Here in the semantics we only use the names r0-r9 and sb,sl,ip,sp,lr,pc
+*/
+module ARMV4-SEMANTICS-NAMED-REGISTER
+    imports ARMV4-PROGRAM
+
+    rule a1:Register => r0    [anywhere]
+    rule a2:Register => r1    [anywhere]
+    rule a3:Register => r2    [anywhere]
+    rule a4:Register => r3    [anywhere]
+
+    rule v1:Register => r4    [anywhere]
+    rule v2:Register => r5    [anywhere]
+    rule v3:Register => r6    [anywhere]
+    rule v4:Register => r7    [anywhere]
+    rule v5:Register => r8    [anywhere]
+    rule v6:Register => r9    [anywhere]
+
+    rule r10:Register => sb:Register   [anywhere]
+    rule v7:Register  => sb:Register   [anywhere]
+
+    rule r11:Register => sl:Register   [anywhere]
+    rule v8:Register  => sl:Register   [anywhere]
+
+    rule r12:Register  => ip  [anywhere]
+    rule r13:Register  => sp  [anywhere]
+    rule r14:Register  => lr  [anywhere]
+    rule r15:Register  => pc  [anywhere]
+
+endmodule
+
+
+/*
+    Provides the semantic for the FlexibleOperand2
+*/
 module ARMV4-SEMANTICS-FLEXIBLE
     imports ARMV4-PROGRAM
 
@@ -373,7 +422,9 @@ module ARMV4-SEMANTICS-FLEXIBLE
 
 endmodule
 
-
+/*
+    Provides the semantic for the MemoryOperand: RegisterList
+*/
 module ARMV4-SEMANTICS-MEMORY-OPERAND
     imports ARMV4-PROGRAM
 
@@ -412,10 +463,13 @@ module ARMV4-SEMANTICS-MEMORY-OPERAND
 endmodule
 
 
+/*
+    Provides the semantic for the Conditionals
+*/
 module ARMV4-SEMANTICS-CONDITIONAL
     imports ARMV4-PROGRAM
 
-    /* Equal */
+    /* Equal: z */
     rule
     <k> eq => . ... </k>
     <register> ... z |-> true ... </register>
@@ -423,7 +477,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> eq ~> _ => . </k>
     <register> ... z |-> false ... </register>
 
-    /* Not Equal */
+    /* Not Equal: ¬z */
     rule
     <k> ne => . ... </k>
     <register> ... z |-> false ... </register>
@@ -431,7 +485,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> ne ~> _ => . </k>
     <register> ... z |-> true ... </register>
 
-    /* Carry Set / Unsigned higher or same */
+    /* Carry Set / Unsigned higher or same: c */
     rule cs => hs
     rule
     <k> cs => . ... </k>
@@ -440,7 +494,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> cs ~> _ => . </k>
     <register> ... c |-> false ... </register>
 
-    /* Cary Clear / Unsigned lower */
+    /* Cary Clear / Unsigned lower: ¬c */
     rule lo => cc [structural]
     rule
     <k> cc => . ... </k>
@@ -449,7 +503,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> cc ~> _ => . </k>
     <register> ... c |-> true ... </register>
 
-    /* Negative */
+    /* Negative: n */
     rule
     <k> mi => . ... </k>
     <register> ... n |-> true ... </register>
@@ -457,7 +511,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> mi ~> _ => . </k>
     <register> ... n |-> false ... </register>
 
-    /* Positive or zero */
+    /* Positive or zero: ¬n */
     rule
     <k> pl => . ... </k>
     <register> ... n |-> false ... </register>
@@ -465,7 +519,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> pl ~> _ => . </k>
     <register> ... n |-> true ... </register>
 
-    /* Overflow */
+    /* Overflow: v */
     rule
     <k> vs => . ... </k>
     <register> ... v |-> true ... </register>
@@ -473,7 +527,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> vs ~> _ => . </k>
     <register> ... v |-> false ... </register>
 
-    /* No overflow */
+    /* No overflow: ¬v */
     rule
     <k> vc => . ... </k>
     <register> ... v |-> false ... </register>
@@ -481,7 +535,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> vc ~> _ => . </k>
     <register> ... v |-> true ... </register>
 
-    /* Unsigned higher */
+    /* Unsigned higher: c && ¬z */
     rule
     <k> hi => . ... </k>
     <register> ... c |-> true z |-> false ... </register>
@@ -492,7 +546,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> hi ~> _ => . </k>
     <register> ... z |-> true ... </register>
 
-    /* Unsigned lower or same */
+    /* Unsigned lower or same: ¬c || z */
     rule
     <k> ls => . ... </k>
     <register> ... c |-> false ... </register>
@@ -503,7 +557,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> ls ~> _ => . </k>
     <register> ... c |-> true z |-> false ... </register>
 
-    /* Signed greater than or equal */
+    /* Signed greater than or equal: n == v */
     rule
     <k> ge => . ... </k>
     <register> ... n |-> false v |-> false ... </register>
@@ -517,7 +571,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> ge ~> _ => . </k>
     <register> ... n |-> true v |-> false ... </register>
 
-    /* Signed less than */
+    /* Signed less than: n != v */
     rule
     <k> lt => . ... </k>
     <register> ... n |-> false v |-> true ... </register>
@@ -531,7 +585,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> lt ~> _ => . </k>
     <register> ... n |-> true v |-> true ... </register>
 
-    /* Signed greater than */
+    /* Signed greater than: ¬z && n == v */
     rule
     <k> gt => . ... </k>
     <register> ... z |-> false n |-> false v |-> false ... </register>
@@ -548,7 +602,7 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> gt ~> _ => . </k>
     <register> ... n |-> false v |-> true ... </register>
 
-    /* Signed less than or equal */
+    /* Signed less than or equal: z || n != v */
     rule
     <k> le => . ... </k>
     <register> ... z |-> true ... </register>
@@ -565,16 +619,20 @@ module ARMV4-SEMANTICS-CONDITIONAL
     <k> le ~> _ => . </k>
     <register> ... z |-> false n |-> true v |-> true ... </register>
 
-    /* Always executed */
+    /* Always executed: 1 */
     rule al => . [structural]
 
 endmodule
 
 
+/*
+    Semantics of the operations
+*/
 module ARMV4-SEMANTICS
     imports ARMV4-PROGRAM
     imports ARMV4-EXECUTION
 
+    imports ARMV4-SEMANTICS-NAMED-REGISTER
     imports ARMV4-SEMANTICS-CONDITIONAL
     imports ARMV4-SEMANTICS-FLEXIBLE
     imports ARMV4-SEMANTICS-MEMORY-OPERAND
@@ -763,7 +821,9 @@ module ARMV4-SEMANTICS
     <register> ... Rd |-> (_ => ~Int I:Int)
                    n |-> (_ => ~Int I <Int 0)
                    z |-> (_ => ~Int I =Int 0) ... </register>
+
     /* Shift */
+    /* The shift operations are semanticly equivalent to a mov operation as denoted in the arm doc */
     rule asr Rd, Rm, (Rs:Register) => mov Rd, Rm, asr Rs            [structural]
     rule asrs Rd, Rm, (Rs:Register) => movs Rd, Rm, asr Rs          [structural]
     rule lsl Rd, Rm, (Rs:Register) => mov Rd, Rm, lsl Rs            [structural]
@@ -898,8 +958,8 @@ module ARMV4-SEMANTICS
     <i> CI => CI +Int 1 </i>                                    /* one internal cycle on instruction bus */
 
     /* Load Multiple */
-    rule ldm _:MemoryOperatorSuffix Rn { . } => .           [structural]
-    rule ldm Rn { Rs:RegisterList } => ldmia Rn { Rs }      [structural]
+    rule ldm _:MemoryOperatorSuffix Rn { . } => .           [structural]  /* empty list gets discarded */
+    rule ldm Rn { Rs:RegisterList } => ldmia Rn { Rs }      [structural]  /* defaults to ia */
     rule
     <k> ldmia Rn { R:Register , Rs:RegisterList } => ldmia Rn { Rs } </k>
     <register> ... Rn |-> (A => A +Int 4)
@@ -926,8 +986,8 @@ module ARMV4-SEMANTICS
     <i> CI => CI +Int 1 </i>                                    /* one internal cycle on instruction bus */
 
     /* Store Multiple */
-    rule stm _:MemoryOperatorSuffix Rn { . } => .           [structural]
-    rule stm Rn { Rs:RegisterList } => stmia Rn { Rs }      [structural]
+    rule stm _:MemoryOperatorSuffix Rn { . } => .           [structural]  /* empty list gets discarded */
+    rule stm Rn { Rs:RegisterList } => stmia Rn { Rs }      [structural]  /* defaults to ia */
     rule
     <k> stmia Rn { R:Register , Rs:RegisterList } => stmia Rn { Rs } </k>
     <register> ... Rn |-> (A => A +Int 4)
